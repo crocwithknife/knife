@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Croc Knives - Swamp Challenge!</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet">
+
+    <style>
+        /* Basic styling for the page - unchanged */
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(180deg, #87CEEB 0%, #a0d8ef 50%, #64c2f4 100%);
+            font-family: 'Luckiest Guy', cursive;
+            overflow: hidden;
+            color: #333;
+        }
+
+        /* Style for the game canvas - unchanged */
+        canvas {
+            display: block;
+            border: 4px solid #5c3d21;
+            border-radius: 12px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3), inset 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        /* Style for the UI elements - unchanged */
+        #ui-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 800px;
+            padding: 12px 20px;
+            margin-bottom: 15px;
+            background: linear-gradient(180deg, #66bb6a 0%, #4caf50 50%, #388e3c 100%);
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border: 2px solid #2e7d32;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        /* UI text element style - unchanged */
+        .ui-element {
+            font-size: 1.6em;
+            font-weight: normal;
+            letter-spacing: 1px;
+        }
+
+        /* Button style - unchanged */
+        #reset-button {
+            padding: 10px 20px;
+            font-size: 1.1em;
+            font-family: 'Luckiest Guy', cursive;
+            font-weight: normal;
+            color: white;
+            background: linear-gradient(180deg, #ef5350 0%, #f44336 50%, #e53935 100%);
+            border: 2px solid #c62828;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
+        }
+        #reset-button:hover {
+            background: linear-gradient(180deg, #e53935 0%, #d32f2f 50%, #c62828 100%);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+            transform: translateY(-1px);
+        }
+         #reset-button:active {
+             transform: translateY(1px);
+             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+         }
+
+        /* Message box style - unchanged */
+        #message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(40, 40, 40, 0.85);
+            color: #fff;
+            padding: 30px 50px;
+            border-radius: 15px;
+            font-size: 2em;
+            text-align: center;
+            display: none;
+            z-index: 10;
+            border: 3px solid #fdd835;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+            text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.6);
+            white-space: pre-wrap;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="ui-container">
+        <div id="score" class="ui-element">Score: 0</div>
+        <div id="knives-left" class="ui-element">Knives: 5</div>
+        <button id="reset-button">Reset Level</button>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+
+    <div id="message-box"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- Matter.js Module Aliases ---
+            const Engine = Matter.Engine,
+                  Render = Matter.Render,
+                  Runner = Matter.Runner,
+                  World = Matter.World,
+                  Bodies = Matter.Bodies,
+                  Body = Matter.Body,
+                  Composite = Matter.Composite,
+                  Events = Matter.Events,
+                  Mouse = Matter.Mouse,
+                  MouseConstraint = Matter.MouseConstraint,
+                  Vector = Matter.Vector;
+
+            // --- Game Variables & Constants ---
+            const canvas = document.getElementById('game-canvas');
+            const scoreElement = document.getElementById('score');
+            const knivesLeftElement = document.getElementById('knives-left');
+            const resetButton = document.getElementById('reset-button');
+            const messageBox = document.getElementById('message-box');
+
+            const canvasWidth = 800;
+            const canvasHeight = 600;
+
+            let engine;
+            let render;
+            let runner;
+            let world;
+            let mouseConstraint;
+
+            let score = 0;
+            let knivesPerLevel = 5;
+            let knivesRemaining = knivesPerLevel;
+            let currentLevel = 0;
+            let targets = [];
+            let movingBodies = [];
+            let particles = [];
+            let activeKnife = null;
+            let isAiming = false;
+            let launchPosition = { x: 150, y: 450 };
+            let trajectoryLine = [];
+
+            // --- Asset Definitions ---
+            const crocImageURL = 'https://i.imgur.com/qUjn2EU_d.png?maxwidth=520&shape=thumb&fidelity=high'; // Crocodile image
+            const knifeImageURL = 'https://i.imgur.com/XePxN34_d.png?maxwidth=520&shape=thumb&fidelity=high'; // Knife image
+
+            // Other Assets (Targets, Crates - unchanged)
+            const targetCircleSVG = `<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><circle cx="30" cy="30" r="28" fill="#FF6347" stroke="#CD5C5C" stroke-width="3"/><circle cx="30" cy="30" r="18" fill="white" stroke="#CD5C5C" stroke-width="2"/><circle cx="30" cy="30" r="8" fill="#FF6347" stroke="#CD5C5C" stroke-width="2"/></svg>`;
+            const targetCircleDataURI = 'data:image/svg+xml;base64,' + btoa(targetCircleSVG);
+            const targetRectSVG = `<svg width="70" height="70" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="66" height="66" rx="5" fill="#FF6347" stroke="#CD5C5C" stroke-width="3"/><rect x="15" y="15" width="40" height="40" fill="white" stroke="#CD5C5C" stroke-width="2"/><rect x="25" y="25" width="20" height="20" fill="#FF6347" stroke="#CD5C5C" stroke-width="2"/></svg>`;
+            const targetRectDataURI = 'data:image/svg+xml;base64,' + btoa(targetRectSVG);
+            const crateSVG = `<svg width="50" height="50" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="46" height="46" fill="#DEB887" stroke="#8B4513" stroke-width="2"/><line x1="2" y1="2" x2="48" y2="48" stroke="#8B4513" stroke-width="2"/><line x1="48" y1="2" x2="2" y2="48" stroke="#8B4513" stroke-width="2"/><line x1="25" y1="2" x2="25" y2="48" stroke="#8B4513" stroke-width="1.5"/><line x1="2" y1="25" x2="48" y2="25" stroke="#8B4513" stroke-width="1.5"/></svg>`;
+            const crateDataURI = 'data:image/svg+xml;base64,' + btoa(crateSVG);
+
+
+            // --- Level Data --- (Unchanged)
+             const levels = [
+                { targets: [ { x: 650, y: 400, radius: 30, points: 10, type: 'circle' } ], obstacles: [ { x: 500, y: 350, width: 20, height: 150, isStatic: true, label: 'obstacle' } ] },
+                { targets: [ { x: 700, y: 150, radius: 25, points: 15, type: 'circle', movement: { type: 'vertical', range: [100, 300], speed: 1.5 } } ], obstacles: [ { x: 550, y: 450, width: 50, height: 50, isStatic: false, label: 'destructible', health: 2, points: 5 } ] },
+                { targets: [ { x: 550, y: 150, radius: 25, points: 10, type: 'circle' }, { x: 750, y: 450, radius: 35, points: 20, type: 'circle', movement: { type: 'horizontal', range: [650, 800], speed: 2 } } ], obstacles: [ { x: 450, y: 250, width: 150, height: 20, isStatic: true, label: 'obstacle' }, { x: 650, y: 350, width: 50, height: 50, isStatic: false, label: 'destructible', health: 3, points: 10 } ] }
+            ];
+
+            // --- Initialization Function --- (Unchanged)
+            function init() {
+                engine = Engine.create(); world = engine.world; world.gravity.y = 0.9;
+                render = Render.create({ canvas: canvas, engine: engine, options: { width: canvasWidth, height: canvasHeight, wireframes: false, background: '#a0d8ef' } });
+                runner = Runner.create();
+                const mouse = Mouse.create(render.canvas);
+                mouseConstraint = MouseConstraint.create(engine, { mouse: mouse, constraint: { stiffness: 0.2, render: { visible: false } } });
+                mouseConstraint.collisionFilter.mask = 0; World.add(world, mouseConstraint); render.mouse = mouse;
+                loadLevel(currentLevel); addEventListeners();
+                Runner.run(runner, engine); Render.run(render); console.log("Game Initialized. Level:", currentLevel);
+            }
+
+            // --- Level Loading Function --- (Unchanged from previous)
+            function loadLevel(levelIndex) {
+                World.clear(world); Engine.clear(engine);
+                targets = []; movingBodies = []; particles = [];
+                score = 0; knivesRemaining = knivesPerLevel; activeKnife = null; isAiming = false; trajectoryLine = [];
+                updateUI(); hideMessage();
+
+                // Add Ground
+                const ground = Bodies.rectangle(canvasWidth / 2, canvasHeight - 25, canvasWidth, 50, { isStatic: true, label: 'ground', render: { fillStyle: '#77dd77' } });
+                World.add(world, ground);
+
+                // Add Crocodile
+                const crocBodyWidth = 50; const crocBodyHeight = 30;
+                const crocBody = Bodies.rectangle(launchPosition.x - 30, launchPosition.y + 10, crocBodyWidth, crocBodyHeight, {
+                    isStatic: true, label: 'croc',
+                    render: { sprite: { texture: crocImageURL, xScale: 0.7, yScale: 0.7 } }
+                });
+                World.add(world, crocBody);
+
+                // Load Level Specific Objects (Targets/Obstacles unchanged)
+                const levelData = levels[levelIndex];
+                if (!levelData) { console.error("Level data not found:", levelIndex); showMessage("You beat all levels!"); return; }
+                levelData.targets.forEach(targetData => { let targetBody; let svgURI = targetData.type === 'circle' ? targetCircleDataURI : targetRectDataURI; let bodyRadius = targetData.type === 'circle' ? targetData.radius * 0.8 : null; let bodyWidth = targetData.type === 'rectangle' ? targetData.width * 0.9 : null; let bodyHeight = targetData.type === 'rectangle' ? targetData.height * 0.9 : null; const options = { label: 'target', isStatic: !!targetData.movement, restitution: 0.5, friction: 0.5, customData: { points: targetData.points, initialX: targetData.x, initialY: targetData.y, movement: targetData.movement }, render: { sprite: { texture: svgURI, xScale: (targetData.type === 'circle' ? targetData.radius * 2 : targetData.width) / (targetData.type === 'circle' ? 60 : 70), yScale: (targetData.type === 'circle' ? targetData.radius * 2 : targetData.height) / (targetData.type === 'circle' ? 60 : 70) } } }; if (targetData.type === 'circle') { targetBody = Bodies.circle(targetData.x, targetData.y, bodyRadius, options); } else { targetBody = Bodies.rectangle(targetData.x, targetData.y, bodyWidth, bodyHeight, options); } targets.push(targetBody); World.add(world, targetBody); if (targetData.movement) { movingBodies.push(targetBody); if (targetData.movement.type === 'horizontal') { Body.setVelocity(targetBody, { x: targetData.movement.speed, y: 0 }); } else if (targetData.movement.type === 'vertical') { Body.setVelocity(targetBody, { x: 0, y: targetData.movement.speed }); } } });
+                if (levelData.obstacles) { levelData.obstacles.forEach(obstacleData => { let obstacleBody; const isDestructible = obstacleData.label === 'destructible'; const options = { isStatic: obstacleData.isStatic, label: obstacleData.label, friction: 0.9, customData: {}, render: {} }; if (isDestructible) { options.customData.health = obstacleData.health; options.customData.points = obstacleData.points || 0; options.render = { sprite: { texture: crateDataURI, xScale: obstacleData.width / 50, yScale: obstacleData.height / 50 } }; obstacleBody = Bodies.rectangle(obstacleData.x, obstacleData.y, obstacleData.width * 0.9, obstacleData.height * 0.9, options); } else { options.render = { fillStyle: '#a0522d' }; obstacleBody = Bodies.rectangle(obstacleData.x, obstacleData.y, obstacleData.width, obstacleData.height, options); } World.add(world, obstacleBody); }); }
+                if (!Composite.allConstraints(world).includes(mouseConstraint)) { World.add(world, mouseConstraint); }
+                console.log(`Level ${levelIndex} loaded.`);
+            }
+
+
+            // --- Event Listeners --- (Unchanged)
+            function addEventListeners() { Events.on(mouseConstraint, 'mousedown', (event) => { if (knivesRemaining > 0 && !activeKnife && !isAiming) { const clickPos = event.mouse.position; if (clickPos.x > launchPosition.x - 60 && clickPos.x < launchPosition.x + 40 && clickPos.y > launchPosition.y - 20 && clickPos.y < launchPosition.y + 50) { isAiming = true; } } }); Events.on(mouseConstraint, 'mouseup', (event) => { if (isAiming) { isAiming = false; launchKnife(event.mouse.position); trajectoryLine = []; } }); Events.on(engine, 'beforeUpdate', (event) => { movingBodies.forEach(body => { if (!body.customData || !body.customData.movement) return; const movement = body.customData.movement; const pos = body.position; let vel = body.velocity; if (movement.type === 'horizontal') { if (pos.x < movement.range[0] && vel.x < 0) { Body.setVelocity(body, { x: movement.speed, y: 0 }); } else if (pos.x > movement.range[1] && vel.x > 0) { Body.setVelocity(body, { x: -movement.speed, y: 0 }); } } else if (movement.type === 'vertical') { if (pos.y < movement.range[0] && vel.y < 0) { Body.setVelocity(body, { x: 0, y: movement.speed }); } else if (pos.y > movement.range[1] && vel.y > 0) { Body.setVelocity(body, { x: 0, y: -movement.speed }); } } Body.setAngularVelocity(body, 0); if (movement.type === 'horizontal') Body.setVelocity(body, { x: body.velocity.x, y: 0 }); if (movement.type === 'vertical') Body.setVelocity(body, { x: 0, y: body.velocity.y }); }); particles.forEach((p, index) => { p.life -= 1; p.radius *= 0.98; p.alpha *= 0.97; if (p.life <= 0) { particles.splice(index, 1); } }); }); Events.on(render, 'beforeRender', () => { if (isAiming) { drawTrajectory(mouseConstraint.mouse.position); } }); Events.on(render, 'afterRender', () => { if (trajectoryLine.length > 0) { const context = render.context; context.beginPath(); context.moveTo(trajectoryLine[0].x, trajectoryLine[0].y); for (let i = 1; i < trajectoryLine.length; i++) { context.lineTo(trajectoryLine[i].x, trajectoryLine[i].y); } context.strokeStyle = 'rgba(255, 255, 255, 0.7)'; context.lineWidth = 3; context.setLineDash([8, 6]); context.stroke(); context.setLineDash([]); } const context = render.context; particles.forEach(p => { context.beginPath(); context.arc(p.x, p.y, p.radius, 0, Math.PI * 2); context.fillStyle = `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, ${p.alpha})`; context.fill(); }); }); Events.on(engine, 'collisionStart', (event) => { const pairs = event.pairs; pairs.forEach(pair => { const bodyA = pair.bodyA; const bodyB = pair.bodyB; let knifeBody = null; let otherBody = null; if (bodyA.label === 'knife' || bodyA.label === 'stuck_knife') { knifeBody = bodyA; otherBody = bodyB; } else if (bodyB.label === 'knife' || bodyB.label === 'stuck_knife') { knifeBody = bodyB; otherBody = bodyA; } if (!knifeBody || knifeBody.label === 'stuck_knife') return; if (otherBody.label === 'target') { if (otherBody.render.visible) { handleTargetHit(otherBody, knifeBody); } } else if (otherBody.label === 'destructible') { handleDestructibleHit(otherBody, knifeBody); } else if (otherBody.label === 'obstacle' || otherBody.label === 'ground') { handleKnifeStick(knifeBody); } }); }); resetButton.addEventListener('click', () => { loadLevel(currentLevel); }); }
+
+            // --- Game Logic Functions ---
+            // ** MODIFIED: launchKnife uses smaller sprite scale **
+            function launchKnife(mousePos) {
+                if (knivesRemaining <= 0) return;
+                knivesRemaining--;
+                updateUI();
+
+                const dx = launchPosition.x - mousePos.x;
+                const dy = launchPosition.y - mousePos.y;
+                const distance = Math.hypot(dx, dy);
+                const maxPower = 80;
+                const powerScale = 0.35;
+                const power = Math.min(distance / 4, maxPower) * powerScale;
+                const angle = Math.atan2(dy, dx);
+
+                // Keep physics body size
+                const knifeBodyWidth = 30;
+                const knifeBodyHeight = 10;
+
+                activeKnife = Bodies.rectangle(launchPosition.x, launchPosition.y, knifeBodyWidth, knifeBodyHeight, {
+                    label: 'knife',
+                    frictionAir: 0.015,
+                    density: 0.01,
+                    render: {
+                        sprite: {
+                            texture: knifeImageURL, // Use the knife image URL
+                            // ** MODIFIED: Further reduced scale factor **
+                            xScale: 0.35, // Was 0.5
+                            yScale: 0.35  // Was 0.5
+                        }
+                    }
+                });
+
+                World.add(world, activeKnife);
+
+                Body.setVelocity(activeKnife, { x: Math.cos(angle) * power, y: Math.sin(angle) * power });
+                Body.setAngularVelocity(activeKnife, 0.15 * (Math.random() < 0.5 ? 1 : -1));
+
+                setTimeout(() => {
+                    if (activeKnife && activeKnife.label === 'knife') {
+                        activeKnife = null;
+                    }
+                }, 1000);
+            }
+
+            // Other Game Logic Functions (Unchanged)
+            function handleTargetHit(targetBody, knifeBody) { console.log("Target Hit!"); score += targetBody.customData.points || 10; createParticles(targetBody.position.x, targetBody.position.y, 10, { r: 255, g: 255, b: 0 }); targetBody.render.visible = false; setTimeout(() => World.remove(world, targetBody), 50); targets = targets.filter(t => t !== targetBody); movingBodies = movingBodies.filter(mb => mb !== targetBody); handleKnifeStick(knifeBody); updateUI(); if (targets.length === 0) { levelComplete(); } }
+            function handleDestructibleHit(obstacleBody, knifeBody) { if (!obstacleBody.customData) return; obstacleBody.customData.health -= 1; console.log(`Destructible hit! Health: ${obstacleBody.customData.health}`); createParticles(knifeBody.position.x, knifeBody.position.y, 5, { r: 139, g: 69, b: 19 }); if (obstacleBody.customData.health <= 0) { console.log("Destructible destroyed!"); score += obstacleBody.customData.points || 0; createParticles(obstacleBody.position.x, obstacleBody.position.y, 15, { r: 139, g: 69, b: 19 }); obstacleBody.render.visible = false; setTimeout(() => World.remove(world, obstacleBody), 50); updateUI(); } handleKnifeStick(knifeBody); }
+            function handleKnifeStick(knifeBody) { if (knifeBody.label !== 'stuck_knife') { knifeBody.label = 'stuck_knife'; Body.setStatic(knifeBody, true); Body.setAngularVelocity(knifeBody, 0); console.log("Knife stuck"); if (activeKnife === knifeBody) { activeKnife = null; } } }
+            function drawTrajectory(mousePos) { trajectoryLine = []; const startX = launchPosition.x; const startY = launchPosition.y; const dx = startX - mousePos.x; const dy = startY - mousePos.y; const distance = Math.hypot(dx, dy); const maxPower = 80; const powerScale = 0.35; const power = Math.min(distance / 4, maxPower) * powerScale; const angle = Math.atan2(dy, dx); let currentX = startX; let currentY = startY; let velX = Math.cos(angle) * power; let velY = Math.sin(angle) * power; const timeStep = 0.1; const gravity = world.gravity.y * engine.timing.timeScale * timeStep * timeStep * 10; const airFriction = 1 - (0.015 * timeStep * 10); for (let i = 0; i < 60; i++) { trajectoryLine.push({ x: currentX, y: currentY }); currentX += velX * timeStep * 10; currentY += velY * timeStep * 10; velY += gravity; velX *= airFriction; velY *= airFriction; if (currentY > canvasHeight + 50 || currentY < -50 || currentX < -50 || currentX > canvasWidth + 50) break; } }
+            function createParticles(x, y, count, color) { for (let i = 0; i < count; i++) { const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 3 + 1; const particle = { x: x, y: y, radius: Math.random() * 4 + 2, color: color, life: 30 + Math.random() * 20, alpha: 0.9, }; particles.push(particle); } }
+            function updateUI() { scoreElement.textContent = `Score: ${score}`; knivesLeftElement.textContent = `Knives: ${knivesRemaining}`; if (knivesRemaining <= 0 && targets.some(t => t.render.visible) && !isAiming && activeKnife === null) { setTimeout(() => { if (knivesRemaining <= 0 && targets.some(t => t.render.visible)) { gameOver(); } }, 1500); } }
+            function levelComplete() { console.log("Level Complete!"); showMessage(`Level ${currentLevel + 1} Complete!\nScore: ${score}`); currentLevel++; setTimeout(() => { if (currentLevel < levels.length) { loadLevel(currentLevel); } else { showMessage("You beat all levels!\nFantastic Aim!"); } }, 2000); }
+            function gameOver() { console.log("Game Over!"); showMessage("Game Over!\nTry Again!"); }
+            function showMessage(text) { messageBox.textContent = text; messageBox.style.display = 'block'; }
+            function hideMessage() { messageBox.style.display = 'none'; }
+
+            // --- Start the Game ---
+            init();
+        });
+    </script>
+
+</body>
+</html>
