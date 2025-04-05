@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Croc Knives - Swamp Challenge!</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet">
+    <style>
+        /* Ensure html and body fill viewport and prevent scrolling */
+        html, body {
+            height: 100%; margin: 0; padding: 0; overflow: hidden;
+            background: linear-gradient(180deg, #87CEEB 0%, #a0d8ef 50%, #64c2f4 100%);
+            font-family: 'Luckiest Guy', cursive; color: #333; box-sizing: border-box;
+        }
+        *, *:before, *:after { box-sizing: inherit; }
+        body { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding: 10px; }
+        canvas { display: block; border: 4px solid #5c3d21; border-radius: 12px; box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3), inset 0 0 10px rgba(0,0,0,0.1); touch-action: none; background: #a0d8ef; max-width: 100%; max-height: 100%; }
+        #ui-container { display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; width: 100%; max-width: 800px; padding: 10px; margin-bottom: 10px; background: linear-gradient(180deg, #66bb6a 0%, #4caf50 50%, #388e3c 100%); color: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); border: 2px solid #2e7d32; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); flex-shrink: 0; }
+        .ui-element { font-size: clamp(1.1em, 3vw, 1.6em); font-weight: normal; letter-spacing: 1px; margin: 5px 10px; }
+        #reset-button { padding: 8px 15px; font-size: clamp(0.9em, 2.5vw, 1.1em); font-family: 'Luckiest Guy', cursive; font-weight: normal; color: white; background: linear-gradient(180deg, #ef5350 0%, #f44336 50%, #e53935 100%); border: 2px solid #c62828; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2); text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4); margin: 5px; }
+        #reset-button:hover { background: linear-gradient(180deg, #e53935 0%, #d32f2f 50%, #c62828 100%); box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3); transform: translateY(-1px); }
+        #reset-button:active { transform: translateY(1px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); }
+        #message-box { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(40, 40, 40, 0.9); color: #fff; width: 85%; max-width: 500px; padding: 25px; border-radius: 15px; font-size: clamp(1.1em, 3.5vw, 1.6em); text-align: center; display: none; z-index: 10; border: 3px solid #fdd835; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4); text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); box-sizing: border-box; line-height: 1.5; white-space: pre-wrap; }
+        #message-box h2 { font-size: 1.5em; color: #fdd835; margin-top: 0; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
+        #message-box p { margin: 10px 0; }
+        #message-box strong { color: #fdd835; }
+        #message-box .prize-code { display: inline-block; background-color: rgba(0, 0, 0, 0.3); padding: 5px 10px; border-radius: 5px; font-size: 1.1em; color: #fff; margin-top: 5px; word-break: break-all; }
+        #message-box .instructions { font-size: 0.9em; opacity: 0.9; margin-top: 20px; }
+        #message-box button { display: inline-block; padding: 12px 24px; font-size: 1em; font-family: 'Luckiest Guy', cursive; font-weight: normal; color: white; background: #1DA1F2; border: 2px solid #0c85d0; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2); text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4); margin-top: 20px; text-decoration: none; }
+        #message-box button:hover { background: #0c85d0; box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3); transform: translateY(-1px); }
+        #message-box button:active { transform: translateY(1px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); }
+        #loading-indicator { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); color: white; display: flex; justify-content: center; align-items: center; font-size: 1.5em; z-index: 100; font-family: 'Luckiest Guy', cursive; }
+    </style>
+</head>
+<body>
+    <div id="loading-indicator">Loading Game Assets...</div>
+
+    <div id="ui-container" style="display: none;"> <div id="score" class="ui-element">Score: 0</div>
+        <div id="knives-left" class="ui-element">Knives: 4</div>
+        <button id="reset-button">Reset Level</button>
+    </div>
+
+    <canvas id="game-canvas" style="display: none;"></canvas> <div id="message-box"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+    <script>
+        function setupGame() {
+            // --- Matter.js Module Aliases ---
+            const Engine = Matter.Engine, Render = Matter.Render, Runner = Matter.Runner, World = Matter.World, Bodies = Matter.Bodies, Body = Matter.Body, Composite = Matter.Composite, Events = Matter.Events, Mouse = Matter.Mouse, MouseConstraint = Matter.MouseConstraint, Vector = Matter.Vector;
+
+            // --- Game Variables & Constants ---
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const uiContainer = document.getElementById('ui-container');
+            const canvas = document.getElementById('game-canvas');
+            const scoreElement = document.getElementById('score');
+            const knivesLeftElement = document.getElementById('knives-left');
+            const resetButton = document.getElementById('reset-button');
+            const messageBox = document.getElementById('message-box');
+            let canvasWidth, canvasHeight;
+            const maxCanvasWidth = 800; const aspectRatio = 4 / 3;
+            let engine, render, runner, world, mouseConstraint, mouse;
+            let score = 0, knivesPerLevel = 4, knivesRemaining = knivesPerLevel, currentLevel = 0;
+            let targets = [], movingBodies = [], particles = [], activeKnife = null, isAiming = false, aimStartPosition = null, launchPosition = { x: 0, y: 0 }, trajectoryLine = [];
+            let resizeTimeout;
+            const groundHeight = 50;
+            const crocBodyHeight = 30;
+            const crocRenderYOffset = 5;
+
+            // --- Asset Definitions --- (Imgur URLs)
+            const crocImageURL = 'https://i.imgur.com/qUjn2EU_d.png?maxwidth=520&shape=thumb&fidelity=high';
+            const knifeImageURL = 'https://i.imgur.com/XePxN34_d.png?maxwidth=520&shape=thumb&fidelity=high';
+            const imageUrlsToPreload = [crocImageURL, knifeImageURL];
+
+            // Other Assets (unchanged)
+            const targetCircleSVG = `<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><circle cx="30" cy="30" r="28" fill="#FF6347" stroke="#CD5C5C" stroke-width="3"/><circle cx="30" cy="30" r="18" fill="white" stroke="#CD5C5C" stroke-width="2"/><circle cx="30" cy="30" r="8" fill="#FF6347" stroke="#CD5C5C" stroke-width="2"/></svg>`;
+            const targetCircleDataURI = 'data:image/svg+xml;base64,' + btoa(targetCircleSVG);
+            const targetRectSVG = `<svg width="70" height="70" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="66" height="66" rx="5" fill="#FF6347" stroke="#CD5C5C" stroke-width="3"/><rect x="15" y="15" width="40" height="40" fill="white" stroke="#CD5C5C" stroke-width="2"/><rect x="25" y="25" width="20" height="20" fill="#FF6347" stroke="#CD5C5C" stroke-width="2"/></svg>`;
+            const targetRectDataURI = 'data:image/svg+xml;base64,' + btoa(targetRectSVG);
+            const crateSVG = `<svg width="50" height="50" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="46" height="46" fill="#DEB887" stroke="#8B4513" stroke-width="2"/><line x1="2" y1="2" x2="48" y2="48" stroke="#8B4513" stroke-width="2"/><line x1="48" y1="2" x2="2" y2="48" stroke="#8B4513" stroke-width="2"/><line x1="25" y1="2" x2="25" y2="48" stroke="#8B4513" stroke-width="1.5"/><line x1="2" y1="25" x2="48" y2="25" stroke="#8B4513" stroke-width="1.5"/></svg>`;
+            const crateDataURI = 'data:image/svg+xml;base64,' + btoa(crateSVG);
+
+            // --- Level Data --- (Unchanged)
+             const levels = [ { targets: [ { xRel: 0.81, yRel: 0.67, radius: 25, points: 10, type: 'circle' } ], obstacles: [ { xRel: 0.625, yRel: 0.58, width: 20, height: 150, isStatic: true, label: 'obstacle' }, { xRel: 0.45, yRel: 0.70, width: 50, height: 15, isStatic: true, label: 'obstacle' } ] }, { targets: [ { xRel: 0.875, yRel: 0.25, radius: 20, points: 15, type: 'circle', movement: { type: 'vertical', rangeRel: [0.167, 0.5], speed: 2.0 } } ], obstacles: [ { xRel: 0.60, yRel: 0.65, width: 50, height: 50, isStatic: false, label: 'destructible', health: 2, points: 5 }, { xRel: 0.875, yRel: 0.45, width: 100, height: 15, isStatic: true, label: 'obstacle' }, { xRel: 0.65, yRel: 0.15, width: 200, height: 15, isStatic: true, label: 'obstacle' } ] }, { targets: [ { xRel: 0.6875, yRel: 0.25, radius: 20, points: 10, type: 'circle' }, { xRel: 0.9375, yRel: 0.75, radius: 30, points: 20, type: 'circle', movement: { type: 'horizontal', rangeRel: [0.8125, 1.0], speed: 2.5 } } ], obstacles: [ { xRel: 0.5625, yRel: 0.416, width: 150, height: 20, isStatic: true, label: 'obstacle' }, { xRel: 0.75, yRel: 0.65, width: 50, height: 50, isStatic: false, label: 'destructible', health: 3, points: 10 }, { xRel: 0.9, yRel: 0.8, width: 40, height: 40, isStatic: false, label: 'destructible', health: 2, points: 5 } ] } ];
+
+            // --- Initialization Function --- (Unchanged)
+            function init() { engine = Engine.create(); world = engine.world; world.gravity.y = 0.9; render = Render.create({ canvas: canvas, engine: engine, options: { width: canvasWidth, height: canvasHeight, wireframes: false, background: '#a0d8ef' } }); Render.setPixelRatio(render, window.devicePixelRatio || 1); runner = Runner.create(); mouse = Mouse.create(render.canvas); mouseConstraint = MouseConstraint.create(engine, { mouse: mouse, constraint: { stiffness: 0.2, render: { visible: false } } }); mouseConstraint.collisionFilter.mask = 0; World.add(world, mouseConstraint); render.mouse = mouse; launchPosition.y = canvasHeight - 65; launchPosition.x = canvasWidth * 0.1875; loadLevel(currentLevel); addEventListeners(); Runner.run(runner, engine); Render.run(render); console.log(`Game Initialized. Canvas: ${canvasWidth}x${canvasHeight}. Launch Pos: ${launchPosition.x.toFixed(1)}x${launchPosition.y.toFixed(1)} Level: ${currentLevel}`); window.addEventListener('resize', handleResizeDebounced); }
+            // --- Calculate Canvas Size --- (Unchanged)
+            function calculateCanvasSize() { const padding = 20; const uiHeightEst = uiContainer.offsetHeight || 60; const availableWidth = window.innerWidth - padding; const tg = window.Telegram?.WebApp; const availableHeight = (tg?.viewportStableHeight || window.innerHeight) - padding - uiHeightEst; console.log(`Using Height: ${tg?.viewportStableHeight ? 'TG Stable' : 'Window Inner'} (${availableHeight})`); let targetWidth = availableWidth; let targetHeight = targetWidth / aspectRatio; if (targetHeight > availableHeight) { targetHeight = availableHeight; targetWidth = targetHeight * aspectRatio; } canvasWidth = Math.min(targetWidth, maxCanvasWidth); canvasHeight = canvasWidth / aspectRatio; canvas.width = canvasWidth; canvas.height = canvasHeight; uiContainer.style.width = canvasWidth + 'px'; console.log(`Calculated Size: ${canvasWidth}x${canvasHeight}`); }
+            // --- Level Loading Function --- (Unchanged)
+            function loadLevel(levelIndex) { World.clear(world); Engine.clear(engine); targets = []; movingBodies = []; particles = []; score = 0; knivesRemaining = knivesPerLevel; activeKnife = null; isAiming = false; trajectoryLine = []; aimStartPosition = null; updateUI(); hideMessage(); const levelData = levels[levelIndex]; if (!levelData) { console.error("Level data not found:", levelIndex); handleGameWin(); return; } const ground = Bodies.rectangle(canvasWidth / 2, canvasHeight - (groundHeight / 2), canvasWidth, groundHeight, { isStatic: true, label: 'ground', render: { fillStyle: '#77dd77' } }); World.add(world, ground); const crocBodyWidth = 50; const crocRenderXOffset = -15; const crocBody = Bodies.rectangle(launchPosition.x + crocRenderXOffset, launchPosition.y + crocRenderYOffset, crocBodyWidth, crocBodyHeight, { isStatic: true, label: 'croc', render: { sprite: { texture: crocImageURL, xScale: 0.25, yScale: 0.25 } } }); World.add(world, crocBody); levelData.targets.forEach(targetData => { let targetBody; let svgURI = targetData.type === 'circle' ? targetCircleDataURI : targetRectDataURI; const targetX = targetData.xRel * canvasWidth; const targetY = targetData.yRel * canvasHeight; const radius = targetData.radius; const width = targetData.width; const height = targetData.height; let bodyRadius = targetData.type === 'circle' ? radius * 0.8 : null; let bodyWidth = targetData.type === 'rectangle' ? width * 0.9 : null; let bodyHeight = targetData.type === 'rectangle' ? height * 0.9 : null; const options = { label: 'target', isStatic: !!targetData.movement, restitution: 0.5, friction: 0.5, customData: { points: targetData.points, movement: targetData.movement ? { type: targetData.movement.type, speed: targetData.movement.speed, range: targetData.movement.rangeRel.map((r, i) => r * (targetData.movement.type === 'horizontal' ? canvasWidth : canvasHeight)) } : null }, render: { sprite: { texture: svgURI, xScale: (radius ? radius * 2 : width) / (targetData.type === 'circle' ? 60 : 70), yScale: (radius ? radius * 2 : height) / (targetData.type === 'circle' ? 60 : 70) } } }; if (targetData.type === 'circle') { targetBody = Bodies.circle(targetX, targetY, bodyRadius, options); } else { targetBody = Bodies.rectangle(targetX, targetY, bodyWidth, bodyHeight, options); } targets.push(targetBody); World.add(world, targetBody); if (options.customData.movement) { movingBodies.push(targetBody); const move = options.customData.movement; if (move.type === 'horizontal') { Body.setVelocity(targetBody, { x: move.speed, y: 0 }); } else if (move.type === 'vertical') { Body.setVelocity(targetBody, { x: 0, y: move.speed }); } } }); if (levelData.obstacles) { levelData.obstacles.forEach(obstacleData => { let obstacleBody; const isDestructible = obstacleData.label === 'destructible'; const obstacleX = obstacleData.xRel * canvasWidth; const obstacleY = obstacleData.yRel * canvasHeight; const width = obstacleData.width; const height = obstacleData.height; const options = { isStatic: obstacleData.isStatic, label: obstacleData.label, friction: 0.9, customData: {}, render: {} }; if (isDestructible) { options.customData.health = obstacleData.health; options.customData.points = obstacleData.points || 0; options.render = { sprite: { texture: crateDataURI, xScale: width / 50, yScale: height / 50 } }; obstacleBody = Bodies.rectangle(obstacleX, obstacleY, width * 0.9, height * 0.9, options); } else { options.render = { fillStyle: '#a0522d' }; obstacleBody = Bodies.rectangle(obstacleX, obstacleY, width, height, options); } World.add(world, obstacleBody); }); } if (!Composite.allConstraints(world).includes(mouseConstraint)) { World.add(world, mouseConstraint); } console.log(`Level ${levelIndex} loaded.`); }
+
+            // --- Helper Function to Get Event Position Relative to Canvas --- ** Added Logging **
+            function getEventPosition(event) {
+                console.log("DEBUG: getEventPosition called, event type:", event.type); // DEBUG
+                const rect = canvas.getBoundingClientRect();
+                let clientX, clientY;
+
+                if (event.touches && event.touches.length > 0) {
+                    clientX = event.touches[0].clientX; clientY = event.touches[0].clientY;
+                    console.log("DEBUG: Touch event detected", clientX, clientY); // DEBUG
+                } else if (event.changedTouches && event.changedTouches.length > 0) {
+                    clientX = event.changedTouches[0].clientX; clientY = event.changedTouches[0].clientY;
+                     console.log("DEBUG: Touchend event detected", clientX, clientY); // DEBUG
+                } else if (event.clientX !== undefined) { // Check if mouse event properties exist
+                    clientX = event.clientX; clientY = event.clientY;
+                     console.log("DEBUG: Mouse event detected", clientX, clientY); // DEBUG
+                } else {
+                     console.error("DEBUG: Could not determine event coordinates."); // DEBUG
+                     return null; // Return null if position cannot be determined
+                }
+
+                if (!rect.width || !rect.height) {
+                    console.error("DEBUG: Canvas rect has zero dimensions.", rect); // DEBUG
+                    return null;
+                }
+
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const canvasX = (clientX - rect.left) * scaleX;
+                const canvasY = (clientY - rect.top) * scaleY;
+                 console.log(`DEBUG: rect={left:${rect.left.toFixed(1)}, top:${rect.top.toFixed(1)}, w:${rect.width.toFixed(1)}, h:${rect.height.toFixed(1)}}, scale={${scaleX.toFixed(2)}, ${scaleY.toFixed(2)}}, canvasPos={${canvasX.toFixed(1)}, ${canvasY.toFixed(1)}}`); // DEBUG
+                return { x: canvasX, y: canvasY };
+            }
+
+            // --- Aiming Logic Functions --- ** Added Logging **
+            function handleAimStart(event) {
+                console.log("DEBUG: handleAimStart triggered by:", event.type); // DEBUG
+                const pos = getEventPosition(event);
+                if (!pos) { console.error("DEBUG: AimStart: Failed to get position"); return; }
+
+                if (knivesRemaining > 0 && !activeKnife && !isAiming) {
+                    const dist = Math.hypot(pos.x - launchPosition.x, pos.y - launchPosition.y);
+                     console.log(`DEBUG: AimStart: Dist from launch (${launchPosition.x.toFixed(1)}, ${launchPosition.y.toFixed(1)}): ${dist.toFixed(1)}`); // DEBUG
+                    if (dist < 60) { // Slightly larger touch area maybe?
+                        isAiming = true;
+                        aimStartPosition = pos;
+                        trajectoryLine = [];
+                        console.log("DEBUG: Aiming started at:", aimStartPosition); // DEBUG
+                        try { event.preventDefault(); } catch(e) { console.warn("DEBUG: preventDefault failed in aimStart", e)}
+                    } else {
+                         console.log("DEBUG: AimStart: Click too far from launch area."); // DEBUG
+                    }
+                } else {
+                     console.log(`DEBUG: AimStart: Condition not met (Knives: ${knivesRemaining}, ActiveKnife: ${!!activeKnife}, IsAiming: ${isAiming})`); // DEBUG
+                }
+            }
+
+            function handleAimMove(event) {
+                 // console.log("DEBUG: handleAimMove triggered by:", event.type); // DEBUG (Very noisy)
+                 console.log("DEBUG: isAiming check in handleAimMove:", isAiming); // DEBUG
+                if (isAiming) {
+                    const pos = getEventPosition(event);
+                     if (!pos) { console.error("DEBUG: AimMove: Failed to get position"); return; }
+                    drawTrajectory(pos);
+                    try { event.preventDefault(); } catch(e) { console.warn("DEBUG: preventDefault failed in aimMove", e)}
+                }
+            }
+
+            function handleAimEnd(event) {
+                console.log("DEBUG: handleAimEnd fired. isAiming:", isAiming, " Event Type:", event.type); // DEBUG
+                if (isAiming) {
+                    const wasAiming = isAiming; // Store state before potentially resetting
+                    isAiming = false; // Set aiming false *immediately*
+                    const endPos = getEventPosition(event);
+                     if (!endPos) {
+                         console.error("DEBUG: AimEnd: Failed to get position, aborting launch."); // DEBUG
+                         aimStartPosition = null;
+                         trajectoryLine = [];
+                         return;
+                     }
+                    console.log("DEBUG: Calling launchKnife. endPos:", endPos); // DEBUG
+                    launchKnife(endPos);
+                    trajectoryLine = [];
+                    aimStartPosition = null;
+                    console.log("DEBUG: Aiming state reset after end."); // DEBUG
+                } else {
+                     console.log("DEBUG: AimEnd: Not aiming or already processed."); // DEBUG
+                }
+            }
+            // --- Debounced Resize Handler --- (Unchanged)
+            function handleResize() { console.log("Resize detected"); calculateCanvasSize(); render.options.width = canvasWidth; render.options.height = canvasHeight; render.bounds.max.x = canvasWidth; render.bounds.max.y = canvasHeight; render.canvas.width = canvasWidth; render.canvas.height = canvasHeight; Mouse.setScale(mouse, { x: (render.options.width / canvasWidth) * (window.devicePixelRatio || 1), y: (render.options.height / canvasHeight) * (window.devicePixelRatio || 1) }); Render.setPixelRatio(render, window.devicePixelRatio || 1); launchPosition.y = canvasHeight - 65; launchPosition.x = canvasWidth * 0.1875; console.log("Reloading level due to resize..."); loadLevel(currentLevel); }
+            function debounce(func, wait) { let timeout; return function executedFunction(...args) { const later = () => { clearTimeout(timeout); func(...args); }; clearTimeout(timeout); timeout = setTimeout(later, wait); }; }
+            const handleResizeDebounced = debounce(handleResize, 250);
+
+            // --- Event Listeners --- ** Added window touchend/cancel **
+            function addEventListeners() {
+                console.log("DEBUG: Adding event listeners..."); // DEBUG
+                canvas.addEventListener('mousedown', handleAimStart);
+                canvas.addEventListener('mousemove', handleAimMove);
+                window.addEventListener('mouseup', handleAimEnd); // Keep mouseup on window
+                canvas.addEventListener('touchstart', handleAimStart, { passive: false });
+                canvas.addEventListener('touchmove', handleAimMove, { passive: false });
+                // ** Listen on window for touch end/cancel events for reliability **
+                window.addEventListener('touchend', handleAimEnd);
+                window.addEventListener('touchcancel', handleAimEnd);
+                console.log("DEBUG: Event listeners added."); // DEBUG
+
+                // Engine update loop (Unchanged)
+                Events.on(engine, 'beforeUpdate', (event) => { movingBodies.forEach(body => { if (!body.customData || !body.customData.movement) return; const movement = body.customData.movement; const pos = body.position; let vel = body.velocity; if (movement.type === 'horizontal') { if (pos.x < movement.range[0] && vel.x < 0) { Body.setVelocity(body, { x: movement.speed, y: 0 }); } else if (pos.x > movement.range[1] && vel.x > 0) { Body.setVelocity(body, { x: -movement.speed, y: 0 }); } } else if (movement.type === 'vertical') { if (pos.y < movement.range[0] && vel.y < 0) { Body.setVelocity(body, { x: 0, y: movement.speed }); } else if (pos.y > movement.range[1] && vel.y > 0) { Body.setVelocity(body, { x: 0, y: -movement.speed }); } } Body.setAngularVelocity(body, 0); if (movement.type === 'horizontal') Body.setVelocity(body, { x: body.velocity.x, y: 0 }); if (movement.type === 'vertical') Body.setVelocity(body, { x: 0, y: body.velocity.y }); }); particles.forEach((p, index) => { p.life -= 1; p.radius *= 0.98; p.alpha *= 0.97; if (p.life <= 0) { particles.splice(index, 1); } }); });
+                // Render loop (Unchanged)
+                Events.on(render, 'afterRender', () => { const context = render.context; if (trajectoryLine.length > 0) { context.beginPath(); context.moveTo(trajectoryLine[0].x, trajectoryLine[0].y); for (let i = 1; i < trajectoryLine.length; i++) { context.lineTo(trajectoryLine[i].x, trajectoryLine[i].y); } context.strokeStyle = 'rgba(255, 255, 255, 0.7)'; context.lineWidth = 3; context.setLineDash([8, 6]); context.stroke(); context.setLineDash([]); } particles.forEach(p => { context.beginPath(); context.arc(p.x, p.y, p.radius, 0, Math.PI * 2); context.fillStyle = `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, ${p.alpha})`; context.fill(); }); });
+                // Collision listener (Unchanged)
+                Events.on(engine, 'collisionStart', (event) => { const pairs = event.pairs; pairs.forEach(pair => { const bodyA = pair.bodyA; const bodyB = pair.bodyB; let knifeBody = null; let otherBody = null; if (bodyA.label === 'knife' || bodyA.label === 'stuck_knife') { knifeBody = bodyA; otherBody = bodyB; } else if (bodyB.label === 'knife' || bodyB.label === 'stuck_knife') { knifeBody = bodyB; otherBody = bodyA; } if (!knifeBody || knifeBody.label === 'stuck_knife') return; if (otherBody.label === 'target') { if (otherBody.render.visible) { handleTargetHit(otherBody, knifeBody); } } else if (otherBody.label === 'destructible') { handleDestructibleHit(otherBody, knifeBody); } else if (otherBody.label === 'obstacle' || otherBody.label === 'ground') { handleKnifeStick(knifeBody); } }); });
+                // Reset listener (Unchanged)
+                resetButton.addEventListener('click', () => { loadLevel(currentLevel); });
+            }
+
+            // --- Game Logic Functions ---
+            // ** launchKnife with logging **
+            function launchKnife(endPos) {
+                console.log("DEBUG: Launch Knife called with endPos:", endPos); // DEBUG
+                if (knivesRemaining <= 0) { console.log("DEBUG: Launch Knife: No knives left."); return; }
+                if (!aimStartPosition) { console.log("DEBUG: Launch Knife: Aim start position is missing."); return; }
+
+                knivesRemaining--; updateUI();
+                const dx = aimStartPosition.x - endPos.x; const dy = aimStartPosition.y - endPos.y;
+                const distance = Math.hypot(dx, dy); const maxPower = 80; const powerScale = 0.35;
+                const power = Math.min(distance / 4, maxPower) * powerScale; const angle = Math.atan2(dy, dx);
+                console.log(`DEBUG: Launch Params: dx=${dx.toFixed(1)}, dy=${dy.toFixed(1)}, dist=${distance.toFixed(1)}, power=${power.toFixed(2)}, angle=${angle.toFixed(2)}`); // DEBUG
+
+                const knifeBodyWidth = 30; const knifeBodyHeight = 10;
+                const spawnX = launchPosition.x + 15; const spawnY = launchPosition.y - 10; // Keep adjusted spawn point
+                console.log(`DEBUG: Spawning knife at: ${spawnX.toFixed(1)}, ${spawnY.toFixed(1)}`); // DEBUG
+
+                try {
+                    activeKnife = Bodies.rectangle(spawnX, spawnY, knifeBodyWidth, knifeBodyHeight, {
+                        label: 'knife', frictionAir: 0.015, density: 0.01,
+                        render: { sprite: { texture: knifeImageURL, xScale: 0.15, yScale: 0.15 } } // Keep smallest knife scale
+                    });
+                    console.log("DEBUG: Knife body created:", activeKnife.id); // DEBUG
+                    World.add(world, activeKnife);
+                    console.log("DEBUG: Knife added to world."); // DEBUG
+                    Body.setVelocity(activeKnife, { x: Math.cos(angle) * power, y: Math.sin(angle) * power });
+                    console.log("DEBUG: Knife velocity set."); // DEBUG
+                    Body.setAngularVelocity(activeKnife, 0.15 * (Math.random() < 0.5 ? 1 : -1));
+                    console.log("DEBUG: Knife angular velocity set."); // DEBUG
+                } catch (error) {
+                    console.error("!!! DEBUG: Error during knife creation/launch:", error); // DEBUG
+                }
+                setTimeout(() => { if (activeKnife && activeKnife.label === 'knife') { activeKnife = null; console.log("DEBUG: Active knife timeout reset.");} }, 1000); // DEBUG log
+            }
+            // drawTrajectory (Unchanged)
+            function drawTrajectory(currentPos) { if (!aimStartPosition) return; trajectoryLine = []; const startX = launchPosition.x; const startY = launchPosition.y; const dx = aimStartPosition.x - currentPos.x; const dy = aimStartPosition.y - currentPos.y; const distance = Math.hypot(dx, dy); const maxPower = 80; const powerScale = 0.35; const power = Math.min(distance / 4, maxPower) * powerScale; const angle = Math.atan2(dy, dx); let tempX = startX; let tempY = startY; let velX = Math.cos(angle) * power; let velY = Math.sin(angle) * power; const timeStep = 0.1; const gravity = world.gravity.y * engine.timing.timeScale * timeStep * timeStep * 10; const airFriction = 1 - (0.015 * timeStep * 10); const trajectoryPoints = 40; for (let i = 0; i < trajectoryPoints; i++) { trajectoryLine.push({ x: tempX, y: tempY }); tempX += velX * timeStep * 10; tempY += velY * timeStep * 10; velY += gravity; velX *= airFriction; velY *= airFriction; if (tempY > canvasHeight + 50 || tempY < -50 || tempX < -50 || tempX > canvasWidth + 50) break; } }
+            // handleTargetHit (Unchanged)
+            function handleTargetHit(targetBody, knifeBody) { console.log("Target Hit!"); score += targetBody.customData.points || 10; createParticles(targetBody.position.x, targetBody.position.y, 7, { r: 255, g: 255, b: 0 }); targetBody.render.visible = false; setTimeout(() => World.remove(world, targetBody), 50); targets = targets.filter(t => t !== targetBody); movingBodies = movingBodies.filter(mb => mb !== targetBody); handleKnifeStick(knifeBody); updateUI(); if (targets.length === 0) { levelComplete(); } }
+            // handleDestructibleHit (Unchanged)
+            function handleDestructibleHit(obstacleBody, knifeBody) { if (!obstacleBody.customData) return; obstacleBody.customData.health -= 1; console.log(`Destructible hit! Health: ${obstacleBody.customData.health}`); createParticles(knifeBody.position.x, knifeBody.position.y, 3, { r: 139, g: 69, b: 19 }); if (obstacleBody.customData.health <= 0) { console.log("Destructible destroyed!"); score += obstacleBody.customData.points || 0; createParticles(obstacleBody.position.x, obstacleBody.position.y, 10, { r: 139, g: 69, b: 19 }); obstacleBody.render.visible = false; setTimeout(() => World.remove(world, obstacleBody), 50); updateUI(); } handleKnifeStick(knifeBody); }
+            // handleKnifeStick (Unchanged)
+            function handleKnifeStick(knifeBody) { if (knifeBody.label !== 'stuck_knife') { knifeBody.label = 'stuck_knife'; Body.setStatic(knifeBody, true); Body.setAngularVelocity(knifeBody, 0); console.log("Knife stuck"); if (activeKnife === knifeBody) { activeKnife = null; } } }
+            // createParticles (Unchanged)
+            function createParticles(x, y, count, color) { for (let i = 0; i < count; i++) { const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 3 + 1; const particle = { x: x, y: y, radius: Math.random() * 4 + 2, color: color, life: 30 + Math.random() * 20, alpha: 0.9, }; particles.push(particle); } }
+            // updateUI (Unchanged)
+            function updateUI() { scoreElement.textContent = `Score: ${score}`; knivesLeftElement.textContent = `Knives: ${knivesRemaining}`; if (knivesRemaining <= 0 && targets.some(t => t.render.visible) && !isAiming && activeKnife === null) { setTimeout(() => { if (knivesRemaining <= 0 && targets.some(t => t.render.visible)) { gameOver(); } }, 1500); } }
+            // --- Game State Functions --- (Unchanged)
+            function levelComplete() { console.log("Level Complete!"); if (currentLevel < levels.length - 1) { showMessage(`Level ${currentLevel + 1} Complete!<br>Score: ${score}`); } currentLevel++; setTimeout(() => { if (currentLevel >= levels.length) { handleGameWin(); } else { loadLevel(currentLevel); } }, 1500); }
+            function gameOver() { console.log("Game Over!"); showMessage("<h2>Game Over!</h2><p>Try Again!</p>"); }
+            function generatePrizeCode() { const timestamp = Date.now(); let randomLetters = ''; const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'; for (let i = 0; i < 4; i++) { randomLetters += characters.charAt(Math.floor(Math.random() * characters.length)); } return `PRIZE-${timestamp}-${randomLetters}`; }
+            function handleGameWin() { console.log("Game Won!"); const prizeCode = generatePrizeCode(); const xComposeUrl = `https://x.com/compose/post`; const winMessageHTML = `<h2>🎉 Congratulations! You won! 🎉</h2><p>Your code: <span class="prize-code">${prizeCode}</span></p><div class="instructions"><p><strong>Instructions:</strong></p><p>1. Create a post about $STAB on X and tag @croc_with_knife.</p><p>2. Then DM @croc_with_knife the code.</p></div><a href="${xComposeUrl}" target="_blank" rel="noopener noreferrer"><button>Create Post on X</button></a>`; showMessage(winMessageHTML); }
+            function showMessage(htmlContent) { messageBox.innerHTML = htmlContent; messageBox.style.display = 'block'; }
+            function hideMessage() { messageBox.style.display = 'none'; }
+
+            // --- Preloading Logic --- (Unchanged)
+            function preloadAssets(urls, callback) { let loadedCount = 0; let errorCount = 0; const totalAssets = urls.length; if (totalAssets === 0) { callback(); return; } loadingIndicator.style.display = 'flex'; urls.forEach(url => { const img = new Image(); img.onload = () => { loadedCount++; console.log(`Loaded: ${url}`); if (loadedCount + errorCount === totalAssets) callback(); }; img.onerror = () => { errorCount++; console.error(`Error loading: ${url}.`); if (loadedCount + errorCount === totalAssets) callback(); }; img.src = url; }); }
+
+            // --- Start Game Function --- (Unchanged)
+            function startGame() { loadingIndicator.style.display = 'none'; uiContainer.style.display = 'flex'; canvas.style.display = 'block'; calculateCanvasSize(); init(); }
+
+            // --- Start Preloading --- (Unchanged)
+             preloadAssets(imageUrlsToPreload, startGame);
+
+        } // End of setupGame function
+
+        // Call the main setup function when DOM is ready
+        document.addEventListener('DOMContentLoaded', setupGame);
+
+    </script>
+
+</body>
+</html>
